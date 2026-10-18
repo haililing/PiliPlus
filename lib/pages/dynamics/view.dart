@@ -29,6 +29,24 @@ class _DynamicsPageState extends CommonPageState<DynamicsPage>
   @override
   bool get wantKeepAlive => true;
 
+  bool get _isAllTab => _dynamicsController.tabController.index == 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _dynamicsController.tabController.addListener(_onTabChanged);
+  }
+
+  void _onTabChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _dynamicsController.tabController.removeListener(_onTabChanged);
+    super.dispose();
+  }
+
   Widget _createDynamicBtn(ColorScheme colorScheme, {bool isRight = true}) =>
       Container(
         width: 34,
@@ -92,6 +110,31 @@ class _DynamicsPageState extends CommonPageState<DynamicsPage>
     };
   }
 
+  Widget _animatedUpPanel(ColorScheme colorScheme) {
+    final isTop = upPanelPosition == .top;
+    return ClipRect(
+      child: AnimatedAlign(
+        alignment: Alignment.topLeft,
+        widthFactor: isTop || _isAllTab ? 1 : 0,
+        heightFactor: !isTop || _isAllTab ? 1 : 0,
+        duration: const Duration(milliseconds: 240),
+        curve: Curves.easeInOutCubic,
+        child: IgnorePointer(
+          ignoring: !_isAllTab,
+          child: ExcludeSemantics(
+            excluding: !_isAllTab,
+            child: AnimatedOpacity(
+              opacity: _isAllTab ? 1 : 0,
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeInOut,
+              child: upPanelPart(colorScheme),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   bool get checkPage =>
       _mainController.navigationBars[0] != .dynamics &&
       _mainController.selectedIndex.value == 0;
@@ -124,7 +167,10 @@ class _DynamicsPageState extends CommonPageState<DynamicsPage>
     Widget actions;
 
     Widget child = UpSwipeArea(
-      onSwipe: _dynamicsController.selectAdjacentUp,
+      enabled: _dynamicsController.upSwipeEnabled,
+      prepareSwipe: _dynamicsController.prepareAdjacentUp,
+      onSelectUp: _dynamicsController.onSelectUp,
+      selectionRevision: () => _dynamicsController.upSelectionRevision,
       child: TabBarView(
         physics: const NeverScrollableScrollPhysics(),
         controller: _dynamicsController.tabController,
@@ -151,7 +197,7 @@ class _DynamicsPageState extends CommonPageState<DynamicsPage>
       case .top:
         child = Column(
           children: [
-            upPanelPart(colorScheme),
+            _animatedUpPanel(colorScheme),
             Expanded(child: child),
           ],
         );
@@ -159,7 +205,7 @@ class _DynamicsPageState extends CommonPageState<DynamicsPage>
       case .leftFixed:
         child = Row(
           children: [
-            upPanelPart(colorScheme),
+            _animatedUpPanel(colorScheme),
             Expanded(child: child),
           ],
         );
@@ -168,18 +214,18 @@ class _DynamicsPageState extends CommonPageState<DynamicsPage>
         child = Row(
           children: [
             Expanded(child: child),
-            upPanelPart(colorScheme),
+            _animatedUpPanel(colorScheme),
           ],
         );
         actions = _createDynamicBtn(colorScheme);
       case .leftDrawer:
-        drawer = upPanelPart(colorScheme);
+        drawer = _isAllTab ? upPanelPart(colorScheme) : null;
         actions = _createDynamicBtn(colorScheme);
-        leading = const DrawerButton();
+        leading = _isAllTab ? const DrawerButton() : null;
       case .rightDrawer:
-        endDrawer = upPanelPart(colorScheme);
+        endDrawer = _isAllTab ? upPanelPart(colorScheme) : null;
         leading = _createDynamicBtn(colorScheme, isRight: false);
-        actions = const EndDrawerButton();
+        actions = _isAllTab ? const EndDrawerButton() : const SizedBox.shrink();
     }
 
     return Scaffold(

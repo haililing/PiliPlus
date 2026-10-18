@@ -31,6 +31,8 @@ class DynamicsController
   final selectedUpMid = (-1).obs;
   int get currentMid => selectedUpMid.value;
   int upSelectionRevision = 0;
+  bool get upSwipeEnabled =>
+      tabController.index == 0 && !tabController.indexIsChanging;
 
   List<UpItem> get visibleUpList =>
       loadingState.value.dataOrNull?.upList
@@ -78,6 +80,12 @@ class DynamicsController
   }
 
   void onSelectUp(int mid) {
+    for (final item in visibleUpList) {
+      if (item.mid == mid) {
+        item.hasUpdate = false;
+        break;
+      }
+    }
     upSelectionRevision++;
     if (currentMid == mid) {
       _jumpToTab(mid);
@@ -101,28 +109,36 @@ class DynamicsController
     _jumpToTab(mid);
   }
 
-  Future<void> selectAdjacentUp(int direction) async {
-    if ((direction != -1 && direction != 1) || !loadingState.value.isSuccess) {
-      return;
+  Future<int?> prepareAdjacentUp(int direction) async {
+    if (!upSwipeEnabled ||
+        (direction != -1 && direction != 1) ||
+        !loadingState.value.isSuccess) {
+      return null;
     }
     final previousMid = currentMid;
+    final selectionRevision = upSelectionRevision;
     var upList = visibleUpList;
     var index = upList.indexWhere((item) => item.mid == previousMid);
 
     if (direction == 1 && index + 1 >= upList.length && !_isEnd) {
       await onLoadMore();
-      if (isClosed || currentMid != previousMid) return;
+      if (isClosed ||
+          !upSwipeEnabled ||
+          currentMid != previousMid ||
+          selectionRevision != upSelectionRevision) {
+        return null;
+      }
       upList = visibleUpList;
       index = upList.indexWhere((item) => item.mid == previousMid);
     }
 
     final nextIndex = index + direction;
     if (direction == -1 && index == 0) {
-      onSelectUp(-1);
+      return -1;
     } else if (nextIndex >= 0 && nextIndex < upList.length) {
-      final item = upList[nextIndex]..hasUpdate = false;
-      onSelectUp(item.mid);
+      return upList[nextIndex].mid;
     }
+    return null;
   }
 
   Future<void> singleRefresh() {
