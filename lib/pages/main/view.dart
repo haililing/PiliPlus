@@ -175,6 +175,7 @@ class _MainAppState extends PopScopeState<MainApp>
       } else if (_mainController.enableMYBar) {
         bottomNav = Obx(
           () => NavigationBar(
+            height: 64,
             labelBehavior: _mainController.hideNavBarLabels.value
                 ? NavigationDestinationLabelBehavior.alwaysHide
                 : NavigationDestinationLabelBehavior.alwaysShow,
