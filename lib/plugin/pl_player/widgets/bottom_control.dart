@@ -3,6 +3,7 @@ import 'package:PiliPlus/common/widgets/progress_bar/segment_progress_bar.dart';
 import 'package:PiliPlus/pages/video/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/view/view.dart';
+import 'package:PiliPlus/plugin/pl_player/widgets/landscape_bottom_control.dart';
 import 'package:PiliPlus/plugin/pl_player/widgets/portrait_bottom_control.dart';
 import 'package:PiliPlus/utils/extension/theme_ext.dart';
 import 'package:PiliPlus/utils/feed_back.dart';
@@ -16,6 +17,7 @@ class BottomControl extends StatelessWidget {
     required this.maxWidth,
     required this.isFullScreen,
     this.usePortraitLayout = false,
+    this.useLandscapeLayout = false,
     required this.controller,
     required this.buildBottomControl,
     required this.videoDetailController,
@@ -24,6 +26,7 @@ class BottomControl extends StatelessWidget {
   final double maxWidth;
   final bool isFullScreen;
   final bool usePortraitLayout;
+  final bool useLandscapeLayout;
   final PlPlayerController controller;
   final ValueGetter<Widget> buildBottomControl;
   final VideoDetailController videoDetailController;
@@ -50,13 +53,15 @@ class BottomControl extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = ColorScheme.of(context);
-    final primary = usePortraitLayout
+    final primary = usePortraitLayout || useLandscapeLayout
         ? Colors.white
         : colorScheme.isLight
         ? colorScheme.inversePrimary
         : colorScheme.primary;
     final thumbGlowColor = primary.withAlpha(80);
-    final bufferedBarColor = usePortraitLayout
+    final bufferedBarColor = useLandscapeLayout
+        ? const Color(0x73FFFFFF)
+        : usePortraitLayout
         ? const Color(0xD9FFFFFF)
         : primary.withValues(alpha: 0.4);
 
@@ -69,6 +74,13 @@ class BottomControl extends StatelessWidget {
       return PortraitBottomControl(
         controller: controller,
         progressBar: progressBar,
+      );
+    }
+    if (useLandscapeLayout) {
+      return LandscapeBottomControl(
+        controller: controller,
+        progressBar: progressBar,
+        controls: buildBottomControl(),
       );
     }
 
@@ -92,6 +104,7 @@ class BottomControl extends StatelessWidget {
     Color thumbGlowColor,
     Color bufferedBarColor,
   ) {
+    final compactBar = usePortraitLayout || useLandscapeLayout;
     return Obx(
       () => Offstage(
         offstage: !controller.showControls.value,
@@ -111,8 +124,8 @@ class BottomControl extends StatelessWidget {
                 bufferedBarColor: bufferedBarColor,
                 thumbColor: primary,
                 thumbGlowColor: thumbGlowColor,
-                barHeight: usePortraitLayout ? 3 : 3.5,
-                thumbRadius: usePortraitLayout ? 6 : 7,
+                barHeight: compactBar ? 3 : 3.5,
+                thumbRadius: compactBar ? 6 : 7,
                 thumbGlowRadius: 25,
                 onDragStart: onDragStart,
                 onDragUpdate: onDragUpdate,
@@ -124,7 +137,7 @@ class BottomControl extends StatelessWidget {
               Positioned(
                 left: 0,
                 right: 0,
-                bottom: usePortraitLayout ? 4.5 : 5.25,
+                bottom: compactBar ? 4.5 : 5.25,
                 child: SegmentProgressBar(
                   segments: videoDetailController.segmentProgressList,
                 ),
@@ -134,7 +147,7 @@ class BottomControl extends StatelessWidget {
                 videoDetailController.showVP.value)
               Padding(
                 padding: EdgeInsets.only(
-                  bottom: usePortraitLayout ? 7.5 : 8.75,
+                  bottom: compactBar ? 7.5 : 8.75,
                 ),
                 child: ViewPointSegmentProgressBar(
                   segments: videoDetailController.viewPointList,
@@ -144,12 +157,13 @@ class BottomControl extends StatelessWidget {
                 ),
               ),
             if (videoDetailController.showDmTrendChart.value)
-              if (videoDetailController.dmTrend.value?.dataOrNull case final list?)
+              if (videoDetailController.dmTrend.value?.dataOrNull
+                  case final list?)
                 buildDmChart(
                   primary,
                   list,
                   videoDetailController,
-                  usePortraitLayout ? 3.25 : 4.5,
+                  compactBar ? 3.25 : 4.5,
                 ),
           ],
         ),

@@ -405,14 +405,18 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
     final isPlayAll = videoDetailController.isPlayAll;
     final anySeason = isSeason || isPart || isPgc || isPlayAll;
     final isFullScreen = this.isFullScreen;
+    final useLandscapeLayout = useLandscapeControls;
     final double widgetWidth = isLandscape && isFullScreen ? 42 : 35;
+    final double controlHeight = useLandscapeLayout ? 40 : 30;
 
     Widget progressWidget(
-      BottomControlType bottomControl,
-    ) => switch (bottomControl) {
+      BottomControlType bottomControl, {
+      VoidCallback? beforeAction,
+    }) => switch (bottomControl) {
       /// 播放暂停
       BottomControlType.playOrPause => PlayOrPauseButton(
         plPlayerController: plPlayerController,
+        iconSize: useLandscapeLayout ? 32 : 20,
       ),
 
       /// 上一集
@@ -426,6 +430,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
           color: Colors.white,
         ),
         onTap: () {
+          beforeAction?.call();
           if (!introController.prevPlay()) {
             SmartDialog.showToast('已经是第一集了');
           }
@@ -435,11 +440,11 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
       /// 下一集
       BottomControlType.next => ComBtn(
         width: widgetWidth,
-        height: 30,
+        height: controlHeight,
         tooltip: '下一集',
-        icon: const Icon(
+        icon: Icon(
           Icons.skip_next,
-          size: 22,
+          size: useLandscapeLayout ? 28 : 22,
           color: Colors.white,
         ),
         onTap: () {
@@ -541,7 +546,12 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
                   color: Colors.white,
                 ),
               ),
-              onTap: widget.showViewPoints,
+              onTap: widget.showViewPoints == null
+                  ? null
+                  : () {
+                      beforeAction?.call();
+                      widget.showViewPoints!();
+                    },
               onLongPress: () {
                 Feedback.forLongPress(context);
                 videoDetailController.showVP.toggle();
@@ -557,14 +567,21 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
 
       /// 选集
       BottomControlType.episode => ComBtn(
-        width: widgetWidth,
-        height: 30,
+        width: useLandscapeLayout ? 64 : widgetWidth,
+        height: controlHeight,
         tooltip: '选集',
-        icon: const Icon(
-          Icons.list,
-          size: 22,
-          color: Colors.white,
-        ),
+        icon: useLandscapeLayout
+            ? const Center(
+                child: Text(
+                  '选集',
+                  style: TextStyle(color: Colors.white, fontSize: 14),
+                ),
+              )
+            : const Icon(
+                Icons.list,
+                size: 22,
+                color: Colors.white,
+              ),
         onTap: () {
           if (videoDetailController.isFileSource) {
             // TODO
@@ -778,12 +795,26 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
                 )
                 .toList();
           },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Text(
-              "${plPlayerController.playbackSpeed}X",
-              style: const TextStyle(color: Colors.white, fontSize: 13),
-              semanticsLabel: "${plPlayerController.playbackSpeed}倍速",
+          child: SizedBox(
+            height: useLandscapeLayout ? controlHeight : null,
+            child: Center(
+              widthFactor: 1,
+              heightFactor: 1,
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: useLandscapeLayout ? 16 : 8,
+                ),
+                child: Text(
+                  useLandscapeLayout && plPlayerController.playbackSpeed == 1
+                      ? '倍速'
+                      : "${plPlayerController.playbackSpeed}X",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: useLandscapeLayout ? 14 : 13,
+                  ),
+                  semanticsLabel: "${plPlayerController.playbackSpeed}倍速",
+                ),
+              ),
             ),
           ),
         ),
@@ -854,11 +885,23 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
                 },
               );
             },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Text(
-                currentVideoQa.shortDesc,
-                style: const TextStyle(color: Colors.white, fontSize: 13),
+            child: SizedBox(
+              height: useLandscapeLayout ? controlHeight : null,
+              child: Center(
+                widthFactor: 1,
+                heightFactor: 1,
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: useLandscapeLayout ? 16 : 8,
+                  ),
+                  child: Text(
+                    currentVideoQa.shortDesc,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: useLandscapeLayout ? 14 : 13,
+                    ),
+                  ),
+                ),
               ),
             ),
           );
@@ -873,8 +916,10 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
         icon: isFullScreen
             ? const Icon(Icons.fullscreen_exit, size: 24, color: Colors.white)
             : const Icon(Icons.fullscreen, size: 24, color: Colors.white),
-        onTap: () =>
-            plPlayerController.triggerFullScreen(status: !isFullScreen),
+        onTap: () {
+          beforeAction?.call();
+          plPlayerController.triggerFullScreen(status: !isFullScreen);
+        },
         onSecondaryTap: () => plPlayerController.triggerFullScreen(
           status: !isFullScreen,
           inAppFullScreen: true,
@@ -883,6 +928,86 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
     };
 
     final isNotFileSource = !plPlayerController.isFileSource;
+
+    if (useLandscapeLayout) {
+      final extraControls = <BottomControlType>[
+        if (!isNotFileSource || anySeason) .pre,
+        if (isNotFileSource && plPlayerController.showDmChart) .dmChart,
+        if (plPlayerController.isAnim) .superResolution,
+        if (isNotFileSource && plPlayerController.showViewPoints) .viewPoints,
+        .fit,
+        if (isNotFileSource) .aiTranslate,
+        .subtitle,
+        .fullscreen,
+      ];
+      return PlayerBar(
+        left: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            progressWidget(.playOrPause),
+            if (!isNotFileSource || anySeason) progressWidget(.next),
+            if (isNotFileSource)
+              Obx(() {
+                final enabled = plPlayerController.enableShowDanmaku.value;
+                return ComBtn(
+                  width: widgetWidth,
+                  height: controlHeight,
+                  tooltip: enabled ? '关闭弹幕' : '开启弹幕',
+                  icon: Icon(
+                    enabled ? CustomIcons.dm_on : CustomIcons.dm_off,
+                    size: 26,
+                    color: Colors.white,
+                  ),
+                  onTap: () {
+                    plPlayerController.enableShowDanmaku.value = !enabled;
+                    if (!plPlayerController.tempPlayerConf) {
+                      GStorage.setting.put(
+                        SettingBoxKey.enableShowDanmaku,
+                        !enabled,
+                      );
+                    }
+                  },
+                );
+              }),
+          ],
+        ),
+        right: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isNotFileSource && anySeason) progressWidget(.episode),
+            progressWidget(.speed),
+            if (isNotFileSource) progressWidget(.qa),
+            ComBtn(
+              width: widgetWidth,
+              height: controlHeight,
+              tooltip: '更多播放功能',
+              icon: const Icon(Icons.more_horiz, color: Colors.white),
+              onTap: () => showModalBottomSheet<void>(
+                context: context,
+                useSafeArea: true,
+                backgroundColor: const Color(0xF2202020),
+                builder: (context) => Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Wrap(
+                    spacing: 16,
+                    runSpacing: 16,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: extraControls
+                        .map(
+                          (type) => progressWidget(
+                            type,
+                            beforeAction: () => Navigator.of(context).pop(),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     List<BottomControlType> userSpecifyItemLeft = [
       .playOrPause,
@@ -919,6 +1044,11 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
   PlPlayerController get plPlayerController => widget.plPlayerController;
 
   bool get isFullScreen => plPlayerController.isFullScreen.value;
+
+  bool get useLandscapeControls =>
+      PlatformUtils.isMobile &&
+      isFullScreen &&
+      MediaQuery.orientationOf(context) == Orientation.landscape;
 
   late final TransformationController _transformationController;
 
@@ -1621,6 +1751,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
                         BottomControl(
                           maxWidth: maxWidth,
                           isFullScreen: isFullScreen,
+                          useLandscapeLayout: useLandscapeControls,
                           usePortraitLayout:
                               PlatformUtils.isMobile &&
                               !isFullScreen &&
