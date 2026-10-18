@@ -18,6 +18,13 @@ class DynamicsTabController
   final DynamicsTabType dynamicsType;
 
   String? offset;
+  int? _queryHostMid;
+  int? _queryUpRevision;
+
+  bool get _hasStaleUpResponse =>
+      dynamicsType == .up &&
+      (_queryHostMid != dynamicsController.hostMid ||
+          _queryUpRevision != dynamicsController.upSelectionRevision);
 
   late final mainController = Get.find<MainController>();
   final dynamicsController = Get.find<DynamicsController>();
@@ -27,6 +34,33 @@ class DynamicsTabController
     super.onInit();
     queryData();
   }
+
+  @override
+  Future<void> queryData([bool isRefresh = true]) async {
+    if (dynamicsType != .up || isLoading) {
+      return super.queryData(isRefresh);
+    }
+    while (!isClosed) {
+      _queryHostMid = dynamicsController.hostMid;
+      _queryUpRevision = dynamicsController.upSelectionRevision;
+      await super.queryData(isRefresh);
+      if (!_hasStaleUpResponse) return;
+      // A newer selection replaces the old request, including during pagination.
+      isRefresh = true;
+      offset = null;
+      page = 1;
+      isEnd = false;
+    }
+  }
+
+  @override
+  bool customHandleResponse(
+    bool isRefresh,
+    Success<DynamicsDataModel> response,
+  ) => _hasStaleUpResponse;
+
+  @override
+  bool handleError(String? errMsg) => _hasStaleUpResponse;
 
   @override
   Future<void> onRefresh() {

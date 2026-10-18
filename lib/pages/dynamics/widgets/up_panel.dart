@@ -4,7 +4,6 @@ import 'package:PiliPlus/models/common/dynamic/up_panel_position.dart';
 import 'package:PiliPlus/models/dynamics/up.dart';
 import 'package:PiliPlus/pages/dynamics/controller.dart';
 import 'package:PiliPlus/pages/live_follow/view.dart';
-import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
 import 'package:PiliPlus/utils/feed_back.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
@@ -29,6 +28,59 @@ class UpPanel extends StatefulWidget {
 class _UpPanelState extends State<UpPanel> {
   late final controller = widget.dynamicsController;
   late final isTop = controller.upPanelPosition == UpPanelPosition.top;
+  final _liveToggleKey = GlobalKey();
+  late final Worker _selectionWorker;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectionWorker = ever(controller.selectedUpMid, (_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _revealSelectedUp());
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _revealSelectedUp());
+  }
+
+  @override
+  void dispose() {
+    _selectionWorker.dispose();
+    super.dispose();
+  }
+
+  void _revealSelectedUp() {
+    if (!mounted || !controller.scrollController.hasClients) return;
+    final mid = controller.currentMid;
+    final index = mid == -1
+        ? 0
+        : controller.visibleUpList.indexWhere((item) => item.mid == mid) + 1;
+    if (mid != -1 && index == 0) return;
+    final toggle =
+        _liveToggleKey.currentContext?.findRenderObject() as RenderBox?;
+    if (toggle == null || !toggle.hasSize) return;
+    final liveCount = controller.showLiveUp
+        ? widget.upData.liveUsers?.items?.length ?? 0
+        : 0;
+    final itemExtent = isTop ? 70.0 : 76.0;
+    final start =
+        (isTop ? toggle.size.width : toggle.size.height) +
+        (liveCount + index) * itemExtent;
+    final position = controller.scrollController.position;
+    final end = start + itemExtent;
+    final double target;
+    if (start < position.pixels) {
+      target = start;
+    } else if (end > position.pixels + position.viewportDimension) {
+      target = end - position.viewportDimension;
+    } else {
+      return;
+    }
+    controller.scrollController.animateTo(
+      target
+          .clamp(position.minScrollExtent, position.maxScrollExtent)
+          .toDouble(),
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOut,
+    );
+  }
 
   void toFollowPage() => Get.to(const LiveFollowPage());
 
@@ -36,7 +88,7 @@ class _UpPanelState extends State<UpPanel> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final upData = widget.upData;
-    final upList = upData.upList;
+    final upList = controller.visibleUpList;
     final liveList = upData.liveUsers?.items;
     return CustomScrollView(
       scrollDirection: isTop ? .horizontal : .vertical,
@@ -45,6 +97,7 @@ class _UpPanelState extends State<UpPanel> {
       slivers: [
         SliverToBoxAdapter(
           child: InkWell(
+            key: _liveToggleKey,
             onTap: () => setState(() {
               controller.showLiveUp = !controller.showLiveUp;
             }),
@@ -104,19 +157,7 @@ class _UpPanelState extends State<UpPanel> {
         SliverToBoxAdapter(
           child: upItemBuild(theme, UpItem(face: '', uname: '全部动态', mid: -1)),
         ),
-        SliverToBoxAdapter(
-          child: Obx(
-            () => upItemBuild(
-              theme,
-              UpItem(
-                uname: '我',
-                face: controller.accountService.face.value,
-                mid: Accounts.main.mid,
-              ),
-            ),
-          ),
-        ),
-        if (upList != null && upList.isNotEmpty)
+        if (upList.isNotEmpty)
           SliverList.builder(
             itemCount: upList.length,
             itemBuilder: (context, index) {
@@ -134,8 +175,11 @@ class _UpPanelState extends State<UpPanel> {
     setState(() {});
   }
 
-  Widget upItemBuild(ThemeData theme, UpItem item) {
-    final currentMid = controller.currentMid;
+  Widget upItemBuild(ThemeData theme, UpItem item) => Obx(
+    () => _buildUpItem(theme, item, controller.currentMid),
+  );
+
+  Widget _buildUpItem(ThemeData theme, UpItem item, int currentMid) {
     final isLive = item is LiveUserItem;
     final isCurrent = isLive || currentMid == item.mid || currentMid == -1;
 

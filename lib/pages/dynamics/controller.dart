@@ -27,7 +27,17 @@ class DynamicsController
   late int _page = 1;
   late bool _isEnd = false;
   Set<UpItem>? _cacheUpList;
-  late int hostMid = -1, currentMid = -1;
+  late int hostMid = -1;
+  final selectedUpMid = (-1).obs;
+  int get currentMid => selectedUpMid.value;
+  int upSelectionRevision = 0;
+
+  List<UpItem> get visibleUpList =>
+      loadingState.value.dataOrNull?.upList
+          ?.where((item) => item.mid > 0 && item.mid != Accounts.main.mid)
+          .toSet()
+          .toList() ??
+      const [];
   late bool showLiveUp = Pref.expandDynLivePanel;
   late final _showAllUp = Pref.dynamicsShowAllFollowedUp;
 
@@ -68,6 +78,7 @@ class DynamicsController
   }
 
   void onSelectUp(int mid) {
+    upSelectionRevision++;
     if (currentMid == mid) {
       _jumpToTab(mid);
       if (mid == -1) {
@@ -86,8 +97,32 @@ class DynamicsController
       } catch (_) {}
     }
 
-    currentMid = mid;
+    selectedUpMid.value = mid;
     _jumpToTab(mid);
+  }
+
+  Future<void> selectAdjacentUp(int direction) async {
+    if ((direction != -1 && direction != 1) || !loadingState.value.isSuccess) {
+      return;
+    }
+    final previousMid = currentMid;
+    var upList = visibleUpList;
+    var index = upList.indexWhere((item) => item.mid == previousMid);
+
+    if (direction == 1 && index + 1 >= upList.length && !_isEnd) {
+      await onLoadMore();
+      if (isClosed || currentMid != previousMid) return;
+      upList = visibleUpList;
+      index = upList.indexWhere((item) => item.mid == previousMid);
+    }
+
+    final nextIndex = index + direction;
+    if (direction == -1 && index == 0) {
+      onSelectUp(-1);
+    } else if (nextIndex >= 0 && nextIndex < upList.length) {
+      final item = upList[nextIndex]..hasUpdate = false;
+      onSelectUp(item.mid);
+    }
   }
 
   Future<void> singleRefresh() {
