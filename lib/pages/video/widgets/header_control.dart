@@ -1665,6 +1665,10 @@ class HeaderControlState extends State<HeaderControl>
   @override
   Widget build(BuildContext context) {
     final isFullScreen = this.isFullScreen;
+    final useLandscapeControls =
+        PlatformUtils.isMobile &&
+        isFullScreen &&
+        MediaQuery.orientationOf(context) == Orientation.landscape;
     final isFSOrPip = isFullScreen || plPlayerController.isDesktopPip;
     final showFSActionItem =
         !isFileSource && plPlayerController.showFSActionItem && isFSOrPip;
@@ -1881,41 +1885,43 @@ class HeaderControlState extends State<HeaderControl>
                       ),
                     ),
                   ),
-                  SizedBox(
-                    width: btnWidth,
-                    height: btnHeight,
-                    child: Obx(
-                      () {
-                        final enableShowDanmaku =
-                            plPlayerController.enableShowDanmaku.value;
-                        return IconButton(
-                          tooltip: "${enableShowDanmaku ? '关闭' : '开启'}弹幕",
-                          style: btnStyle,
-                          onPressed: () {
-                            final newVal = !enableShowDanmaku;
-                            plPlayerController.enableShowDanmaku.value = newVal;
-                            if (!plPlayerController.tempPlayerConf) {
-                              setting.put(
-                                SettingBoxKey.enableShowDanmaku,
-                                newVal,
-                              );
-                            }
-                          },
-                          icon: enableShowDanmaku
-                              ? const Icon(
-                                  size: 20,
-                                  CustomIcons.dm_on,
-                                  color: Colors.white,
-                                )
-                              : const Icon(
-                                  size: 20,
-                                  CustomIcons.dm_off,
-                                  color: Colors.white,
-                                ),
-                        );
-                      },
+                  if (!useLandscapeControls)
+                    SizedBox(
+                      width: btnWidth,
+                      height: btnHeight,
+                      child: Obx(
+                        () {
+                          final enableShowDanmaku =
+                              plPlayerController.enableShowDanmaku.value;
+                          return IconButton(
+                            tooltip: "${enableShowDanmaku ? '关闭' : '开启'}弹幕",
+                            style: btnStyle,
+                            onPressed: () {
+                              final newVal = !enableShowDanmaku;
+                              plPlayerController.enableShowDanmaku.value =
+                                  newVal;
+                              if (!plPlayerController.tempPlayerConf) {
+                                setting.put(
+                                  SettingBoxKey.enableShowDanmaku,
+                                  newVal,
+                                );
+                              }
+                            },
+                            icon: enableShowDanmaku
+                                ? const Icon(
+                                    size: 20,
+                                    CustomIcons.dm_on,
+                                    color: Colors.white,
+                                  )
+                                : const Icon(
+                                    size: 20,
+                                    CustomIcons.dm_off,
+                                    color: Colors.white,
+                                  ),
+                          );
+                        },
+                      ),
                     ),
-                  ),
                 ],
                 SizedBox(
                   width: btnWidth,
@@ -1931,9 +1937,10 @@ class HeaderControlState extends State<HeaderControl>
                     ),
                   ),
                 ),
-                if ((Platform.isAndroid && PiliAndroidHelper.isPipAvailable) ||
-                    (Platform.isIOS && IOSPipHelper.isAvailable) ||
-                    (PlatformUtils.isDesktop && !isFullScreen))
+                if (!useLandscapeControls &&
+                    ((Platform.isAndroid && PiliAndroidHelper.isPipAvailable) ||
+                        (Platform.isIOS && IOSPipHelper.isAvailable) ||
+                        (PlatformUtils.isDesktop && !isFullScreen)))
                   SizedBox(
                     width: btnWidth,
                     height: btnHeight,

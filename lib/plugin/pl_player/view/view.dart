@@ -414,9 +414,8 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
     final double controlHeight = useLandscapeLayout ? 48 : 30;
 
     Widget progressWidget(
-      BottomControlType bottomControl, {
-      VoidCallback? beforeAction,
-    }) => switch (bottomControl) {
+      BottomControlType bottomControl,
+    ) => switch (bottomControl) {
       /// 播放暂停
       BottomControlType.playOrPause => PlayOrPauseButton(
         plPlayerController: plPlayerController,
@@ -437,7 +436,6 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
           color: Colors.white,
         ),
         onTap: () {
-          beforeAction?.call();
           if (!introController.prevPlay()) {
             SmartDialog.showToast('已经是第一集了');
           }
@@ -553,12 +551,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
                   color: Colors.white,
                 ),
               ),
-              onTap: widget.showViewPoints == null
-                  ? null
-                  : () {
-                      beforeAction?.call();
-                      widget.showViewPoints!();
-                    },
+              onTap: widget.showViewPoints,
               onLongPress: () {
                 Feedback.forLongPress(context);
                 videoDetailController.showVP.toggle();
@@ -923,10 +916,8 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
         icon: isFullScreen
             ? const Icon(Icons.fullscreen_exit, size: 24, color: Colors.white)
             : const Icon(Icons.fullscreen, size: 24, color: Colors.white),
-        onTap: () {
-          beforeAction?.call();
-          plPlayerController.triggerFullScreen(status: !isFullScreen);
-        },
+        onTap: () =>
+            plPlayerController.triggerFullScreen(status: !isFullScreen),
         onSecondaryTap: () => plPlayerController.triggerFullScreen(
           status: !isFullScreen,
           inAppFullScreen: true,
@@ -937,16 +928,6 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
     final isNotFileSource = !plPlayerController.isFileSource;
 
     if (useLandscapeLayout) {
-      final extraControls = <BottomControlType>[
-        if (!isNotFileSource || anySeason) .pre,
-        if (isNotFileSource && plPlayerController.showDmChart) .dmChart,
-        if (plPlayerController.isAnim) .superResolution,
-        if (isNotFileSource && plPlayerController.showViewPoints) .viewPoints,
-        .fit,
-        if (isNotFileSource) .aiTranslate,
-        .subtitle,
-        .fullscreen,
-      ];
       // PlayerBar retains the incoming minimum width for both children and
       // scales them down when this full-width column stretches it. A flex row
       // gives each group its natural width and keeps quality at the right edge.
@@ -981,33 +962,6 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
                     },
                   );
                 }),
-              ComBtn(
-                width: widgetWidth,
-                height: controlHeight,
-                tooltip: '更多播放功能',
-                icon: const Icon(Icons.more_horiz, color: Colors.white),
-                onTap: () => showModalBottomSheet<void>(
-                  context: context,
-                  useSafeArea: true,
-                  backgroundColor: const Color(0xF2202020),
-                  builder: (context) => Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Wrap(
-                      spacing: 16,
-                      runSpacing: 16,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: extraControls
-                          .map(
-                            (type) => progressWidget(
-                              type,
-                              beforeAction: () => Navigator.of(context).pop(),
-                            ),
-                          )
-                          .toList(),
-                    ),
-                  ),
-                ),
-              ),
             ],
           ),
           const Spacer(),
