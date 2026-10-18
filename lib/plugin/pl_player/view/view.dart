@@ -1621,6 +1621,11 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
                         BottomControl(
                           maxWidth: maxWidth,
                           isFullScreen: isFullScreen,
+                          usePortraitLayout:
+                              PlatformUtils.isMobile &&
+                              !isFullScreen &&
+                              MediaQuery.orientationOf(context) ==
+                                  Orientation.portrait,
                           controller: plPlayerController,
                           videoDetailController: videoDetailController,
                           buildBottomControl: () => buildBottomControl(

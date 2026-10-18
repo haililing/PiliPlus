@@ -6,10 +6,12 @@ import 'package:media_kit/media_kit.dart';
 
 class PlayOrPauseButton extends StatefulWidget {
   final PlPlayerController plPlayerController;
+  final double iconSize;
 
   const PlayOrPauseButton({
     super.key,
     required this.plPlayerController,
+    this.iconSize = 20,
   });
 
   @override
@@ -61,7 +63,7 @@ class PlayOrPauseButtonState extends State<PlayOrPauseButton>
             progress: controller,
             icon: AnimatedIcons.play_pause,
             color: Colors.white,
-            size: 20,
+            size: widget.iconSize,
           ),
         ),
       ),
