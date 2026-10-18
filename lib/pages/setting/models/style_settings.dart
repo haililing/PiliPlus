@@ -132,6 +132,15 @@ List<SettingsModel> get styleSettings => [
     needReboot: true,
   ),
   SwitchModel(
+    title: '底栏仅显示图标',
+    subtitle: '隐藏首页、动态、我的等底部导航文字，即时生效',
+    leading: const Icon(Icons.hide_source_outlined),
+    setKey: SettingBoxKey.hideNavBarLabels,
+    defaultVal: true,
+    onChanged: (value) =>
+        Get.find<MainController>().hideNavBarLabels.value = value,
+  ),
+  SwitchModel(
     title: '显示粉丝勋章',
     leading: const Icon(MdiIcons.medalOutline),
     setKey: SettingBoxKey.showMedal,

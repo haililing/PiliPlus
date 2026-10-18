@@ -156,6 +156,9 @@ class _MainAppState extends PopScopeState<MainApp>
       if (_mainController.floatingNavBar) {
         bottomNav = Obx(
           () => FloatingNavigationBar(
+            labelBehavior: _mainController.hideNavBarLabels.value
+                ? NavigationDestinationLabelBehavior.alwaysHide
+                : NavigationDestinationLabelBehavior.alwaysShow,
             onDestinationSelected: _mainController.setIndex,
             selectedIndex: _mainController.selectedIndex.value,
             destinations: _mainController.navigationBars
@@ -172,6 +175,9 @@ class _MainAppState extends PopScopeState<MainApp>
       } else if (_mainController.enableMYBar) {
         bottomNav = Obx(
           () => NavigationBar(
+            labelBehavior: _mainController.hideNavBarLabels.value
+                ? NavigationDestinationLabelBehavior.alwaysHide
+                : NavigationDestinationLabelBehavior.alwaysShow,
             maintainBottomViewPadding: true,
             onDestinationSelected: _mainController.setIndex,
             selectedIndex: _mainController.selectedIndex.value,
@@ -189,6 +195,8 @@ class _MainAppState extends PopScopeState<MainApp>
       } else {
         bottomNav = Obx(
           () => BottomNavigationBar(
+            showSelectedLabels: !_mainController.hideNavBarLabels.value,
+            showUnselectedLabels: !_mainController.hideNavBarLabels.value,
             currentIndex: _mainController.selectedIndex.value,
             onTap: _mainController.setIndex,
             iconSize: 16,
