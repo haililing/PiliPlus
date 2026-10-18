@@ -1722,7 +1722,6 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
                           useLandscapeLayout: useLandscapeControls,
                           usePortraitLayout:
                               PlatformUtils.isMobile &&
-                              !isFullScreen &&
                               MediaQuery.orientationOf(context) ==
                                   Orientation.portrait,
                           controller: plPlayerController,

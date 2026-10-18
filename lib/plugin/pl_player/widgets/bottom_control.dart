@@ -74,6 +74,7 @@ class BottomControl extends StatelessWidget {
       return PortraitBottomControl(
         controller: controller,
         progressBar: progressBar,
+        showFullscreenButton: !isFullScreen,
       );
     }
     if (useLandscapeLayout) {

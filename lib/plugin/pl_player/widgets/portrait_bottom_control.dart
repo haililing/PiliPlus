@@ -5,17 +5,18 @@ import 'package:PiliPlus/utils/duration_utils.dart';
 import 'package:get/get.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// Single-row controls for the embedded player on a portrait phone screen.
-/// Fullscreen players continue to use the standard bottom controls.
+/// Single-row controls for portrait phone screens, including fullscreen.
 class PortraitBottomControl extends StatelessWidget {
   const PortraitBottomControl({
     super.key,
     required this.controller,
     required this.progressBar,
+    this.showFullscreenButton = true,
   });
 
   final PlPlayerController controller;
   final Widget progressBar;
+  final bool showFullscreenButton;
 
   @override
   Widget build(BuildContext context) {
@@ -60,19 +61,21 @@ class PortraitBottomControl extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 6),
-              ComBtn(
-                width: 40,
-                height: 40,
-                tooltip: '全屏',
-                onTap: () => controller.triggerFullScreen(status: true),
-                icon: const Center(
-                  child: CustomPaint(
-                    size: Size(24, 24),
-                    painter: _PortraitFullscreenIcon(),
+              if (showFullscreenButton) ...[
+                const SizedBox(width: 6),
+                ComBtn(
+                  width: 40,
+                  height: 40,
+                  tooltip: '全屏',
+                  onTap: () => controller.triggerFullScreen(status: true),
+                  icon: const Center(
+                    child: CustomPaint(
+                      size: Size(24, 24),
+                      painter: _PortraitFullscreenIcon(),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ],
           ),
         ),
