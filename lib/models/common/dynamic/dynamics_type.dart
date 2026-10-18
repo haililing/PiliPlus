@@ -8,6 +8,8 @@ enum DynamicsTabType implements EnumWithLabel {
   up('UP'),
   ;
 
+  static const visibleTabs = [all, video];
+
   @override
   final String label;
   const DynamicsTabType(this.label);

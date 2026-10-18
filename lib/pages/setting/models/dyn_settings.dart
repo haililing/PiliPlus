@@ -65,7 +65,7 @@ List<SettingsModel> get dynSettings => [
     title: '动态展示',
     leading: const Icon(Icons.dynamic_feed_rounded),
     value: () => Pref.defaultDynamicType,
-    items: DynamicsTabType.values.take(4),
+    items: DynamicsTabType.visibleTabs,
     onSelected: (value, setState) => GStorage.setting
         .put(SettingBoxKey.defaultDynamicType, value.index)
         .whenComplete(setState),

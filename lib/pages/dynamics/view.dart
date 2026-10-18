@@ -125,8 +125,21 @@ class _DynamicsPageState extends CommonPageState<DynamicsPage>
 
     Widget child = tabBarView(
       controller: _dynamicsController.tabController,
-      children: DynamicsTabType.values
-          .map((e) => DynamicsTabPage(dynamicsType: e))
+      children: DynamicsTabType.visibleTabs
+          .map(
+            (type) => type == .all
+                ? Obx(() {
+                    final dynamicsType =
+                        _dynamicsController.showUpDynamics.value
+                        ? DynamicsTabType.up
+                        : DynamicsTabType.all;
+                    return DynamicsTabPage(
+                      key: ValueKey(dynamicsType),
+                      dynamicsType: dynamicsType,
+                    );
+                  })
+                : DynamicsTabPage(dynamicsType: type),
+          )
           .toList(),
     );
 
@@ -188,7 +201,7 @@ class _DynamicsPageState extends CommonPageState<DynamicsPage>
                     TabBarTheme.of(context).labelStyle
                         ?.copyWith(fontSize: 13) ??
                     const TextStyle(fontSize: 13),
-                tabs: DynamicsTabType.values
+                tabs: DynamicsTabType.visibleTabs
                     .map((e) => Tab(text: e.label))
                     .toList(),
                 onTap: (index) {

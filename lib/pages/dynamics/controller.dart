@@ -19,6 +19,7 @@ class DynamicsController
     extends CommonDataController<FollowUpModel, FollowUpModel>
     with GetSingleTickerProviderStateMixin, AccountMixin {
   late final TabController tabController;
+  final showUpDynamics = false.obs;
 
   final Set<int> tempBannedList = <int>{};
 
@@ -37,8 +38,11 @@ class DynamicsController
 
   DynamicsTabController? get controller {
     try {
+      final type = DynamicsTabType.visibleTabs[tabController.index];
       return Get.find<DynamicsTabController>(
-        tag: DynamicsTabType.values[tabController.index].name,
+        tag: type == .all && showUpDynamics.value
+            ? DynamicsTabType.up.name
+            : type.name,
       );
     } catch (_) {
       return null;
@@ -50,14 +54,17 @@ class DynamicsController
     super.onInit();
     tabController = TabController(
       vsync: this,
-      length: DynamicsTabType.values.length,
-      initialIndex: Pref.defaultDynamicTypeIndex,
+      length: DynamicsTabType.visibleTabs.length,
+      initialIndex: DynamicsTabType.visibleTabs.indexOf(
+        Pref.defaultDynamicType,
+      ),
     );
     queryData();
   }
 
   void _jumpToTab(int mid) {
-    tabController.index = mid == -1 ? 0 : 4;
+    showUpDynamics.value = mid != -1;
+    tabController.index = 0;
   }
 
   void onSelectUp(int mid) {

@@ -301,7 +301,9 @@ abstract final class Pref {
       _setting.get(SettingBoxKey.systemProxyPort, defaultValue: '');
 
   static DynamicsTabType get defaultDynamicType =>
-      DynamicsTabType.values[defaultDynamicTypeIndex];
+      defaultDynamicTypeIndex == DynamicsTabType.video.index
+      ? DynamicsTabType.video
+      : DynamicsTabType.all;
 
   static int get defaultDynamicTypeIndex => _setting.get(
     SettingBoxKey.defaultDynamicType,
