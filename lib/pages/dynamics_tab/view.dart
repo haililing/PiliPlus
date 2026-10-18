@@ -16,9 +16,14 @@ import 'package:get/get.dart';
 import 'package:material_ui/material_ui.dart';
 
 class DynamicsTabPage extends StatefulWidget {
-  const DynamicsTabPage({super.key, required this.dynamicsType});
+  const DynamicsTabPage({
+    super.key,
+    required this.dynamicsType,
+    this.hostMid,
+  });
 
   final DynamicsTabType dynamicsType;
+  final int? hostMid;
 
   @override
   State<DynamicsTabPage> createState() => _DynamicsTabPageState();
@@ -28,17 +33,38 @@ class _DynamicsTabPageState extends State<DynamicsTabPage>
     with AutomaticKeepAliveClientMixin, DynMixin {
   final dynamicsController = Get.putOrFind(DynamicsController.new);
   late final DynamicsTabController controller;
+  late final String _controllerTag;
 
   @override
-  bool get wantKeepAlive => true;
+  bool get wantKeepAlive => widget.dynamicsType != DynamicsTabType.up;
 
   @override
   void initState() {
+    _controllerTag = DynamicsTabController.tagFor(
+      widget.dynamicsType,
+      hostMid: widget.hostMid,
+    );
     controller = Get.putOrFind(
-      () => DynamicsTabController(dynamicsType: widget.dynamicsType),
-      tag: widget.dynamicsType.name,
+      () => DynamicsTabController(
+        dynamicsType: widget.dynamicsType,
+        hostMid: widget.hostMid,
+      ),
+      tag: _controllerTag,
     );
     super.initState();
+  }
+
+  @override
+  void dispose() {
+    if (widget.dynamicsType == .up &&
+        Get.isRegistered<DynamicsTabController>(tag: _controllerTag) &&
+        identical(
+          Get.find<DynamicsTabController>(tag: _controllerTag),
+          controller,
+        )) {
+      Get.delete<DynamicsTabController>(tag: _controllerTag);
+    }
+    super.dispose();
   }
 
   Future<void> onRefresh() {

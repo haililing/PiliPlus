@@ -19,7 +19,6 @@ class DynamicsController
     extends CommonDataController<FollowUpModel, FollowUpModel>
     with GetSingleTickerProviderStateMixin, AccountMixin {
   late final TabController tabController;
-  final showUpDynamics = false.obs;
 
   final Set<int> tempBannedList = <int>{};
 
@@ -27,10 +26,8 @@ class DynamicsController
   late int _page = 1;
   late bool _isEnd = false;
   Set<UpItem>? _cacheUpList;
-  late int hostMid = -1;
   final selectedUpMid = (-1).obs;
   int get currentMid => selectedUpMid.value;
-  int upSelectionRevision = 0;
   bool get upSwipeEnabled =>
       tabController.index == 0 && !tabController.indexIsChanging;
 
@@ -52,8 +49,8 @@ class DynamicsController
     try {
       final type = DynamicsTabType.visibleTabs[tabController.index];
       return Get.find<DynamicsTabController>(
-        tag: type == .all && showUpDynamics.value
-            ? DynamicsTabType.up.name
+        tag: type == .all && currentMid != -1
+            ? DynamicsTabController.tagFor(.up, hostMid: currentMid)
             : type.name,
       );
     } catch (_) {
@@ -74,71 +71,31 @@ class DynamicsController
     queryData();
   }
 
-  void _jumpToTab(int mid) {
-    showUpDynamics.value = mid != -1;
-    tabController.index = 0;
-  }
-
-  void onSelectUp(int mid) {
+  void _selectUp(int mid) {
     for (final item in visibleUpList) {
       if (item.mid == mid) {
         item.hasUpdate = false;
         break;
       }
     }
-    upSelectionRevision++;
-    if (currentMid == mid) {
-      _jumpToTab(mid);
+    selectedUpMid.value = mid;
+  }
+
+  void onSelectUp(int mid) {
+    final isCurrent = currentMid == mid;
+    tabController.index = 0;
+    _selectUp(mid);
+    if (isCurrent) {
       if (mid == -1) {
         singleRefresh();
       }
       controller?.onReload();
-      return;
     }
-
-    if (mid != -1) {
-      hostMid = mid;
-      try {
-        Get.find<DynamicsTabController>(
-          tag: DynamicsTabType.up.name,
-        ).onReload();
-      } catch (_) {}
-    }
-
-    selectedUpMid.value = mid;
-    _jumpToTab(mid);
   }
 
-  Future<int?> prepareAdjacentUp(int direction) async {
-    if (!upSwipeEnabled ||
-        (direction != -1 && direction != 1) ||
-        !loadingState.value.isSuccess) {
-      return null;
-    }
-    final previousMid = currentMid;
-    final selectionRevision = upSelectionRevision;
-    var upList = visibleUpList;
-    var index = upList.indexWhere((item) => item.mid == previousMid);
-
-    if (direction == 1 && index + 1 >= upList.length && !_isEnd) {
-      await onLoadMore();
-      if (isClosed ||
-          !upSwipeEnabled ||
-          currentMid != previousMid ||
-          selectionRevision != upSelectionRevision) {
-        return null;
-      }
-      upList = visibleUpList;
-      index = upList.indexWhere((item) => item.mid == previousMid);
-    }
-
-    final nextIndex = index + direction;
-    if (direction == -1 && index == 0) {
-      return -1;
-    } else if (nextIndex >= 0 && nextIndex < upList.length) {
-      return upList[nextIndex].mid;
-    }
-    return null;
+  /// Updates avatar selection without navigating or reloading a paging feed.
+  void onUpPageChanged(int mid) {
+    _selectUp(mid);
   }
 
   Future<void> singleRefresh() {

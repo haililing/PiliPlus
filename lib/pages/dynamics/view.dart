@@ -166,31 +166,19 @@ class _DynamicsPageState extends CommonPageState<DynamicsPage>
     Widget? leading;
     Widget actions;
 
-    Widget child = UpSwipeArea(
-      enabled: _dynamicsController.upSwipeEnabled,
-      prepareSwipe: _dynamicsController.prepareAdjacentUp,
-      onSelectUp: _dynamicsController.onSelectUp,
-      selectionRevision: () => _dynamicsController.upSelectionRevision,
-      child: TabBarView(
-        physics: const NeverScrollableScrollPhysics(),
-        controller: _dynamicsController.tabController,
-        children: DynamicsTabType.visibleTabs
-            .map(
-              (type) => type == .all
-                  ? Obx(() {
-                      final dynamicsType =
-                          _dynamicsController.showUpDynamics.value
-                          ? DynamicsTabType.up
-                          : DynamicsTabType.all;
-                      return DynamicsTabPage(
-                        key: ValueKey(dynamicsType),
-                        dynamicsType: dynamicsType,
-                      );
-                    })
-                  : DynamicsTabPage(dynamicsType: type),
-            )
-            .toList(),
-      ),
+    Widget child = TabBarView(
+      physics: const NeverScrollableScrollPhysics(),
+      controller: _dynamicsController.tabController,
+      children: DynamicsTabType.visibleTabs
+          .map(
+            (type) => type == .all
+                ? UpSwipeArea(
+                    enabled: _dynamicsController.upSwipeEnabled,
+                    controller: _dynamicsController,
+                  )
+                : DynamicsTabPage(dynamicsType: type),
+          )
+          .toList(),
     );
 
     switch (upPanelPosition) {
