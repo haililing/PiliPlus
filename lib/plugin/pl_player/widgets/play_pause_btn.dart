@@ -7,11 +7,13 @@ import 'package:media_kit/media_kit.dart';
 class PlayOrPauseButton extends StatefulWidget {
   final PlPlayerController plPlayerController;
   final double iconSize;
+  final Size buttonSize;
 
   const PlayOrPauseButton({
     super.key,
     required this.plPlayerController,
     this.iconSize = 20,
+    this.buttonSize = const Size(42, 34),
   });
 
   @override
@@ -52,8 +54,8 @@ class PlayOrPauseButtonState extends State<PlayOrPauseButton>
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 42,
-      height: 34,
+      width: widget.buttonSize.width,
+      height: widget.buttonSize.height,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: widget.plPlayerController.onDoubleTapCenter,

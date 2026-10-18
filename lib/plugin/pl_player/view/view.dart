@@ -406,8 +406,12 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
     final anySeason = isSeason || isPart || isPgc || isPlayAll;
     final isFullScreen = this.isFullScreen;
     final useLandscapeLayout = useLandscapeControls;
-    final double widgetWidth = isLandscape && isFullScreen ? 42 : 35;
-    final double controlHeight = useLandscapeLayout ? 40 : 30;
+    final double widgetWidth = useLandscapeLayout
+        ? 52
+        : isLandscape && isFullScreen
+        ? 42
+        : 35;
+    final double controlHeight = useLandscapeLayout ? 48 : 30;
 
     Widget progressWidget(
       BottomControlType bottomControl, {
@@ -416,7 +420,10 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
       /// 播放暂停
       BottomControlType.playOrPause => PlayOrPauseButton(
         plPlayerController: plPlayerController,
-        iconSize: useLandscapeLayout ? 32 : 20,
+        iconSize: useLandscapeLayout ? 36 : 20,
+        buttonSize: useLandscapeLayout
+            ? const Size(48, 48)
+            : const Size(42, 34),
       ),
 
       /// 上一集
@@ -444,7 +451,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
         tooltip: '下一集',
         icon: Icon(
           Icons.skip_next,
-          size: useLandscapeLayout ? 28 : 22,
+          size: useLandscapeLayout ? 32 : 22,
           color: Colors.white,
         ),
         onTap: () {
@@ -940,72 +947,79 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
         .subtitle,
         .fullscreen,
       ];
-      return PlayerBar(
-        left: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            progressWidget(.playOrPause),
-            if (!isNotFileSource || anySeason) progressWidget(.next),
-            if (isNotFileSource)
-              Obx(() {
-                final enabled = plPlayerController.enableShowDanmaku.value;
-                return ComBtn(
-                  width: widgetWidth,
-                  height: controlHeight,
-                  tooltip: enabled ? '关闭弹幕' : '开启弹幕',
-                  icon: Icon(
-                    enabled ? CustomIcons.dm_on : CustomIcons.dm_off,
-                    size: 26,
-                    color: Colors.white,
-                  ),
-                  onTap: () {
-                    plPlayerController.enableShowDanmaku.value = !enabled;
-                    if (!plPlayerController.tempPlayerConf) {
-                      GStorage.setting.put(
-                        SettingBoxKey.enableShowDanmaku,
-                        !enabled,
-                      );
-                    }
-                  },
-                );
-              }),
-          ],
-        ),
-        right: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (isNotFileSource && anySeason) progressWidget(.episode),
-            progressWidget(.speed),
-            if (isNotFileSource) progressWidget(.qa),
-            ComBtn(
-              width: widgetWidth,
-              height: controlHeight,
-              tooltip: '更多播放功能',
-              icon: const Icon(Icons.more_horiz, color: Colors.white),
-              onTap: () => showModalBottomSheet<void>(
-                context: context,
-                useSafeArea: true,
-                backgroundColor: const Color(0xF2202020),
-                builder: (context) => Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Wrap(
-                    spacing: 16,
-                    runSpacing: 16,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: extraControls
-                        .map(
-                          (type) => progressWidget(
-                            type,
-                            beforeAction: () => Navigator.of(context).pop(),
-                          ),
-                        )
-                        .toList(),
+      // PlayerBar retains the incoming minimum width for both children and
+      // scales them down when this full-width column stretches it. A flex row
+      // gives each group its natural width and keeps quality at the right edge.
+      return Row(
+        textDirection: TextDirection.ltr,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              progressWidget(.playOrPause),
+              if (!isNotFileSource || anySeason) progressWidget(.next),
+              if (isNotFileSource)
+                Obx(() {
+                  final enabled = plPlayerController.enableShowDanmaku.value;
+                  return ComBtn(
+                    width: widgetWidth,
+                    height: controlHeight,
+                    tooltip: enabled ? '关闭弹幕' : '开启弹幕',
+                    icon: Icon(
+                      enabled ? CustomIcons.dm_on : CustomIcons.dm_off,
+                      size: 30,
+                      color: Colors.white,
+                    ),
+                    onTap: () {
+                      plPlayerController.enableShowDanmaku.value = !enabled;
+                      if (!plPlayerController.tempPlayerConf) {
+                        GStorage.setting.put(
+                          SettingBoxKey.enableShowDanmaku,
+                          !enabled,
+                        );
+                      }
+                    },
+                  );
+                }),
+              ComBtn(
+                width: widgetWidth,
+                height: controlHeight,
+                tooltip: '更多播放功能',
+                icon: const Icon(Icons.more_horiz, color: Colors.white),
+                onTap: () => showModalBottomSheet<void>(
+                  context: context,
+                  useSafeArea: true,
+                  backgroundColor: const Color(0xF2202020),
+                  builder: (context) => Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Wrap(
+                      spacing: 16,
+                      runSpacing: 16,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: extraControls
+                          .map(
+                            (type) => progressWidget(
+                              type,
+                              beforeAction: () => Navigator.of(context).pop(),
+                            ),
+                          )
+                          .toList(),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
+          const Spacer(),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (isNotFileSource && anySeason) progressWidget(.episode),
+              progressWidget(.speed),
+              if (isNotFileSource) progressWidget(.qa),
+            ],
+          ),
+        ],
       );
     }
 
