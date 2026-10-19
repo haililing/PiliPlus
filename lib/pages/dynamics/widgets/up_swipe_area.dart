@@ -31,6 +31,7 @@ class _UpSwipeAreaState extends State<UpSwipeArea>
   late final Worker _sourceWorker;
   bool _updatingFromPage = false;
   bool _syncingList = false;
+  bool _pendingSourceUpdate = false;
   int? _targetMid;
   int _moveVersion = 0;
 
@@ -55,7 +56,7 @@ class _UpSwipeAreaState extends State<UpSwipeArea>
       if (!_updatingFromPage && !_syncingList) _moveToSelection();
     });
     _sourceWorker = ever(widget.controller.loadingState, (state) {
-      if (state.isSuccess) _updateMids();
+      _updateMids();
     });
   }
 
@@ -79,6 +80,11 @@ class _UpSwipeAreaState extends State<UpSwipeArea>
   }
 
   void _updateMids() {
+    if (_pages.hasClients && _pages.position.isScrollingNotifier.value) {
+      _pendingSourceUpdate = true;
+      return;
+    }
+    _pendingSourceUpdate = false;
     final next = _sourceMids();
     if (listEquals(_mids, next)) return;
     final selectedMid = widget.controller.currentMid;
@@ -167,10 +173,19 @@ class _UpSwipeAreaState extends State<UpSwipeArea>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return NotificationListener<ScrollStartNotification>(
+    return NotificationListener<ScrollNotification>(
       onNotification: (notification) {
         if (notification.depth == 0 &&
             notification.metrics.axis == Axis.horizontal &&
+            notification is ScrollEndNotification &&
+            _pendingSourceUpdate) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _updateMids();
+          });
+        }
+        if (notification.depth == 0 &&
+            notification.metrics.axis == Axis.horizontal &&
+            notification is ScrollStartNotification &&
             notification.dragDetails != null) {
           _moveVersion++;
           _targetMid = null;

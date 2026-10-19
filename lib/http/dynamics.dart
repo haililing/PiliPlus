@@ -39,6 +39,7 @@ abstract final class DynamicsHttp {
     String? offset,
     Set<int>? tempBannedList,
     DynamicsTabType type = .all,
+    void Function(Map<int, int>)? onPublicationTimes,
   }) async {
     Map<String, dynamic> data = {
       if (type == .up) 'host_mid': hostMid else 'type': type.name,
@@ -49,6 +50,7 @@ abstract final class DynamicsHttp {
     final code = res.data['code'];
     if (code == 0) {
       try {
+        onPublicationTimes?.call(_publicationTimes(res.data['data']));
         DynamicsDataModel data = DynamicsDataModel.fromJson(
           res.data['data'],
           type: type,
@@ -60,6 +62,7 @@ abstract final class DynamicsHttp {
             offset: data.offset,
             hostMid: hostMid,
             tempBannedList: tempBannedList,
+            onPublicationTimes: onPublicationTimes,
           );
         }
         return Success(data);
@@ -87,10 +90,27 @@ abstract final class DynamicsHttp {
   }
 
   /// Read publication timestamps before feed filters can remove any items.
-  static Future<LoadingState<int>> latestDynamicPubTime(int mid) async {
+  static Map<int, int> _publicationTimes(dynamic data) {
+    final times = <int, int>{};
+    for (final item in data?['items'] as List? ?? const []) {
+      final author = item['modules']?['module_author'];
+      final mid = safeToInt(author?['mid']);
+      final published = safeToInt(author?['pub_ts']) ?? 0;
+      if (mid != null && mid > 0 && published > (times[mid] ?? 0)) {
+        times[mid] = published;
+      }
+    }
+    return times;
+  }
+
+  static Future<LoadingState<int>> latestDynamicPubTime(
+    int mid, {
+    CancelToken? cancelToken,
+  }) async {
     try {
       final res = await Request().get(
         Api.followDynamic,
+        cancelToken: cancelToken,
         queryParameters: {
           'host_mid': mid,
           'features': Constants.dynFeatures,
@@ -98,15 +118,8 @@ abstract final class DynamicsHttp {
       );
       if (res.data['code'] != 0) return Error(res.data['message']);
 
-      var latest = 0;
       // A pinned post may precede newer posts, so inspect the entire first page.
-      for (final item in res.data['data']?['items'] as List? ?? const []) {
-        final author = item['modules']?['module_author'];
-        if (safeToInt(author?['mid']) != mid) continue;
-        final published = safeToInt(author?['pub_ts']) ?? 0;
-        if (published > latest) latest = published;
-      }
-      return Success(latest);
+      return Success(_publicationTimes(res.data['data'])[mid] ?? 0);
     } catch (e) {
       return Error(e.toString());
     }

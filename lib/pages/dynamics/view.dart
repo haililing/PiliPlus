@@ -95,19 +95,12 @@ class _DynamicsPageState extends CommonPageState<DynamicsPage>
   }
 
   Widget _buildUpPanel(LoadingState<FollowUpModel> upState) {
-    return switch (upState) {
-      Loading() => const SizedBox.shrink(),
-      Success(:final response) => UpPanel(
-        upData: response,
-        dynamicsController: _dynamicsController,
-      ),
-      Error() => Center(
-        child: IconButton(
-          icon: const Icon(Icons.refresh),
-          onPressed: _dynamicsController.onReload,
-        ),
-      ),
-    };
+    return UpPanel(
+      upData: upState.dataOrNull ?? FollowUpModel.fromUpList(null),
+      dynamicsController: _dynamicsController,
+      showPlaceholders: upState is Loading,
+      onRetry: upState is Error ? _dynamicsController.onReload : null,
+    );
   }
 
   Widget _animatedUpPanel(ColorScheme colorScheme) {

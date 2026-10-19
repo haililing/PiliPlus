@@ -17,10 +17,14 @@ class UpPanel extends StatefulWidget {
     super.key,
     required this.upData,
     required this.dynamicsController,
+    this.showPlaceholders = false,
+    this.onRetry,
   });
 
   final FollowUpModel upData;
   final DynamicsController dynamicsController;
+  final bool showPlaceholders;
+  final VoidCallback? onRetry;
 
   @override
   State<UpPanel> createState() => _UpPanelState();
@@ -174,6 +178,47 @@ class _UpPanelState extends State<UpPanel> {
         SliverToBoxAdapter(
           child: upItemBuild(theme, UpItem(face: '', uname: '全部动态', mid: -1)),
         ),
+        if (widget.showPlaceholders && upList.isEmpty)
+          SliverList.builder(
+            itemCount: 4,
+            itemBuilder: (context, index) => ExcludeSemantics(
+              child: SizedBox(
+                width: isTop ? 70 : null,
+                height: 76,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircleAvatar(
+                      radius: 19,
+                      backgroundColor:
+                          theme.colorScheme.surfaceContainerHighest,
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      width: 36,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        if (widget.onRetry != null)
+          SliverToBoxAdapter(
+            child: SizedBox(
+              width: isTop ? 70 : null,
+              height: 76,
+              child: IconButton(
+                tooltip: '重新加载UP列表',
+                onPressed: widget.onRetry,
+                icon: const Icon(Icons.refresh),
+              ),
+            ),
+          ),
         if (upList.isNotEmpty)
           SliverList.builder(
             itemCount: upList.length,

@@ -7,6 +7,7 @@ import 'package:PiliPlus/pages/common/common_list_controller.dart';
 import 'package:PiliPlus/pages/dynamics/controller.dart';
 import 'package:PiliPlus/pages/main/controller.dart';
 import 'package:PiliPlus/services/account_service.dart';
+import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/extension/scroll_controller_ext.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
@@ -58,13 +59,26 @@ class DynamicsTabController
   }
 
   @override
-  Future<LoadingState<DynamicsDataModel>> customGetData() =>
-      DynamicsHttp.followDynamic(
-        offset: offset,
-        type: dynamicsType,
-        hostMid: hostMid,
-        tempBannedList: dynamicsController.tempBannedList,
-      );
+  Future<LoadingState<DynamicsDataModel>> customGetData() {
+    final accountMid = Accounts.main.mid;
+    final firstPage = offset == null;
+    return DynamicsHttp.followDynamic(
+      offset: offset,
+      type: dynamicsType,
+      hostMid: hostMid,
+      tempBannedList: dynamicsController.tempBannedList,
+      onPublicationTimes: dynamicsType == .all || dynamicsType == .up
+          ? (times) {
+              if (!isClosed && Accounts.main.mid == accountMid) {
+                dynamicsController.observePublicationTimes(
+                  times,
+                  firstPage: firstPage,
+                );
+              }
+            }
+          : null,
+    );
+  }
 
   Future<void> onRemove(int index, dynamic dynamicId) async {
     final res = await MsgHttp.removeDynamic(dynIdStr: dynamicId);
