@@ -161,6 +161,12 @@ class AccountManager extends Interceptor {
   }
 
   static void toast(DioException err) {
+    // Optional background jobs can opt out of toasts for deliberate cancellation.
+    // Keep reporting their real network errors and all foreground request errors.
+    if (err.type == DioExceptionType.cancel &&
+        err.requestOptions.extra['silentCancellation'] == true) {
+      return;
+    }
     const skipShow = [
       'heartbeat',
       'history/report',

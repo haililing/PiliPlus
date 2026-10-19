@@ -132,20 +132,25 @@ abstract final class DynamicsHttp {
     int mid, {
     CancelToken? cancelToken,
   }) async {
+    if (cancelToken?.isCancelled == true) return const Error(null);
     try {
       final res = await Request().get(
         Api.followDynamic,
         cancelToken: cancelToken,
+        // Refresh/lifecycle cancellation of an optional sort job is expected.
+        options: Options(extra: {'silentCancellation': true}),
         queryParameters: {
           'host_mid': mid,
           'features': Constants.dynFeatures,
         },
       );
+      if (cancelToken?.isCancelled == true) return const Error(null);
       if (res.data['code'] != 0) return Error(res.data['message']);
 
       // A pinned post may precede newer posts, so inspect the entire first page.
       return Success(_publicationTimes(res.data['data'])[mid] ?? 0);
     } catch (e) {
+      if (cancelToken?.isCancelled == true) return const Error(null);
       return Error(e.toString());
     }
   }
