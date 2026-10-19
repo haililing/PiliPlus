@@ -39,7 +39,7 @@ abstract final class DynamicsHttp {
     String? offset,
     Set<int>? tempBannedList,
     DynamicsTabType type = .all,
-    void Function(Map<int, int>)? onPublicationTimes,
+    void Function(Map<int, int>, List<UpItem>)? onFeedUpdate,
   }) async {
     Map<String, dynamic> data = {
       if (type == .up) 'host_mid': hostMid else 'type': type.name,
@@ -50,7 +50,10 @@ abstract final class DynamicsHttp {
     final code = res.data['code'];
     if (code == 0) {
       try {
-        onPublicationTimes?.call(_publicationTimes(res.data['data']));
+        onFeedUpdate?.call(
+          _publicationTimes(res.data['data']),
+          type == .all ? _followedFeedUps(res.data['data']) : const [],
+        );
         DynamicsDataModel data = DynamicsDataModel.fromJson(
           res.data['data'],
           type: type,
@@ -62,7 +65,7 @@ abstract final class DynamicsHttp {
             offset: data.offset,
             hostMid: hostMid,
             tempBannedList: tempBannedList,
-            onPublicationTimes: onPublicationTimes,
+            onFeedUpdate: onFeedUpdate,
           );
         }
         return Success(data);
@@ -101,6 +104,28 @@ abstract final class DynamicsHttp {
       }
     }
     return times;
+  }
+
+  /// Only top-level authors in the followed feed belong in the UP row.
+  /// Do not add the original authors nested inside reposts or PGC accounts.
+  static List<UpItem> _followedFeedUps(dynamic data) {
+    final ups = <int, UpItem>{};
+    for (final item in data?['items'] as List? ?? const []) {
+      final author = item['modules']?['module_author'];
+      if (author is! Map || item['type'] == 'DYNAMIC_TYPE_AD') continue;
+      final type = author['type'];
+      if (type != null && type != 'AUTHOR_TYPE_NORMAL') continue;
+      if (author['following'] == false || author['following'] == 0) continue;
+      final mid = safeToInt(author['mid']);
+      if (mid == null || mid <= 0) continue;
+      final name = author['name'];
+      if (name is! String || name.isEmpty) continue;
+      ups.putIfAbsent(
+        mid,
+        () => UpItem(mid: mid, uname: name, face: author['face'] as String?),
+      );
+    }
+    return ups.values.toList();
   }
 
   static Future<LoadingState<int>> latestDynamicPubTime(

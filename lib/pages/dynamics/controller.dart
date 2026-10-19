@@ -40,6 +40,7 @@ class DynamicsController
   final Map<int, int> _latestDynamicTimes = {};
   final Map<int, int> _timestampCheckedAt = {};
   final Map<int, UpItem> _upsByMid = {};
+  final Map<int, UpItem> _feedUps = {};
   List<UpItem> _visibleUps = const [];
   final Set<int> _pendingTimes = {};
   final Set<int> _inFlightTimes = {};
@@ -82,6 +83,9 @@ class DynamicsController
     if (cache == null) return;
     _latestDynamicTimes.addAll(cache.publicationTimes);
     _timestampCheckedAt.addAll(cache.checkedAt);
+    for (final item in cache.data.upList ?? const <UpItem>[]) {
+      if (cache.feedMids.contains(item.mid)) _feedUps[item.mid] = item;
+    }
     _rebuildVisibleUps(cache.data);
     loadingState.value = Success(cache.data);
   }
@@ -220,6 +224,7 @@ class DynamicsController
     _latestDynamicTimes.clear();
     _timestampCheckedAt.clear();
     _upsByMid.clear();
+    _feedUps.clear();
     _visibleUps = const [];
     selectedUpMid.value = -1;
     loadingState.value = LoadingState.loading();
@@ -267,12 +272,53 @@ class DynamicsController
     _visibleUps,
     _latestDynamicTimes,
     _timestampCheckedAt,
+    _feedUps.keys.toSet(),
   );
 
+  bool _mergeFeedUps(FollowUpModel data) {
+    final listed = {
+      for (final item in data.upList ?? const <UpItem>[]) item.mid,
+    };
+    final missing = _feedUps.values
+        .where((item) => !listed.contains(item.mid))
+        .toList();
+    data.addAllUpList(missing);
+    // Use the server's unread state when an author is also in the portal list.
+    for (final item in data.upList ?? const <UpItem>[]) {
+      if (_feedUps.containsKey(item.mid)) _feedUps[item.mid] = item;
+    }
+    return missing.isNotEmpty;
+  }
+
   /// Reuse timestamps from feeds already requested for display; no extra I/O.
-  void observePublicationTimes(Map<int, int> times, {required bool firstPage}) {
+  void observeFeedUpdate(
+    Map<int, int> times,
+    List<UpItem> authors, {
+    required bool firstPage,
+  }) {
     if (isClosed) return;
     var changed = false;
+    var authorsChanged = false;
+    for (final author in authors) {
+      if (author.mid <= 0 || author.mid == Accounts.main.mid) continue;
+      final existing = _upsByMid[author.mid] ?? _feedUps[author.mid];
+      if (existing == null) {
+        _feedUps[author.mid] = author;
+        authorsChanged = true;
+      } else {
+        if (author.uname case final name?
+            when name.isNotEmpty && name != existing.uname) {
+          existing.uname = name;
+          authorsChanged = true;
+        }
+        if (author.face case final face?
+            when face.isNotEmpty && face != existing.face) {
+          existing.face = face;
+          authorsChanged = true;
+        }
+        _feedUps[author.mid] = existing;
+      }
+    }
     final now = DateTime.now().millisecondsSinceEpoch;
     for (final entry in times.entries) {
       if (entry.value > (_latestDynamicTimes[entry.key] ?? 0)) {
@@ -284,9 +330,26 @@ class DynamicsController
         _pendingTimes.remove(entry.key);
       }
     }
-    if (loadingState.value.dataOrNull case final data?) {
-      if (changed && _rebuildVisibleUps(data)) loadingState.refresh();
-      if (!_sorting && (changed || (firstPage && times.isNotEmpty))) {
+    final currentData = loadingState.value.dataOrNull;
+    if (currentData != null || _feedUps.isNotEmpty) {
+      final data = currentData ?? FollowUpModel.fromUpList(null);
+      final membersChanged = _mergeFeedUps(data);
+      final orderChanged =
+          (currentData == null ||
+              changed ||
+              authorsChanged ||
+              membersChanged) &&
+          _rebuildVisibleUps(data);
+      if (currentData == null) {
+        loadingState.value = Success(data);
+      } else if (orderChanged || authorsChanged || membersChanged) {
+        loadingState.refresh();
+      }
+      if (!_sorting &&
+          (changed ||
+              authorsChanged ||
+              membersChanged ||
+              (firstPage && times.isNotEmpty))) {
         unawaited(_saveUpPanel());
       }
     }
@@ -397,6 +460,8 @@ class DynamicsController
     }
 
     if (isRefresh) {
+      // The portal is only a partial list and must not erase feed discoveries.
+      _mergeFeedUps(res);
       if (_showAllUp) {
         _offset = '';
         _cacheUpList = res.upList?.toSet();

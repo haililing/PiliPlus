@@ -67,11 +67,12 @@ class DynamicsTabController
       type: dynamicsType,
       hostMid: hostMid,
       tempBannedList: dynamicsController.tempBannedList,
-      onPublicationTimes: dynamicsType == .all || dynamicsType == .up
-          ? (times) {
+      onFeedUpdate: dynamicsType == .all || dynamicsType == .up
+          ? (times, authors) {
               if (!isClosed && Accounts.main.mid == accountMid) {
-                dynamicsController.observePublicationTimes(
+                dynamicsController.observeFeedUpdate(
                   times,
+                  authors,
                   firstPage: firstPage,
                 );
               }

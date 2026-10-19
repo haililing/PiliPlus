@@ -4,11 +4,17 @@ import 'package:PiliPlus/utils/storage.dart';
 
 /// Account-local snapshots contain only the data needed to restore the UP row.
 class UpPanelCache {
-  const UpPanelCache(this.data, this.publicationTimes, this.checkedAt);
+  const UpPanelCache(
+    this.data,
+    this.publicationTimes,
+    this.checkedAt,
+    this.feedMids,
+  );
 
   final FollowUpModel data;
   final Map<int, int> publicationTimes;
   final Map<int, int> checkedAt;
+  final Set<int> feedMids;
 
   static String _key(int accountMid) => 'dynamics.up-panel.v1:$accountMid';
 
@@ -32,6 +38,10 @@ class UpPanelCache {
         FollowUpModel.fromUpList({'items': items}),
         readTimes(raw['times']),
         readTimes(raw['checked']),
+        {
+          for (final mid in raw['feed_mids'] as List? ?? const [])
+            if (safeToInt(mid) case final id? when id > 0) id,
+        },
       );
     } catch (_) {
       // An old or damaged optional cache must not prevent network loading.
@@ -44,6 +54,7 @@ class UpPanelCache {
     List<UpItem> items,
     Map<int, int> publicationTimes,
     Map<int, int> checkedAt,
+    Set<int> feedMids,
   ) async {
     if (accountMid <= 0) return;
     // Keep startup I/O bounded even for accounts following many creators.
@@ -65,6 +76,10 @@ class UpPanelCache {
         'checked': {
           for (final item in cached) item.mid: ?checkedAt[item.mid],
         },
+        'feed_mids': [
+          for (final item in cached)
+            if (feedMids.contains(item.mid)) item.mid,
+        ],
       });
     } catch (_) {
       // Display and refresh remain available if the cache cannot be written.
