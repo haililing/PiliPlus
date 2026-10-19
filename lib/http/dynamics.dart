@@ -27,6 +27,7 @@ import 'package:PiliPlus/models_new/dynamic/dyn_topic_top/top_details.dart';
 import 'package:PiliPlus/models_new/dynamic/dyn_topic_top/topic_item.dart';
 import 'package:PiliPlus/models_new/followee_votes/vote.dart';
 import 'package:PiliPlus/utils/accounts.dart';
+import 'package:PiliPlus/utils/parse_int.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:PiliPlus/utils/wbi_sign.dart';
 import 'package:dio/dio.dart';
@@ -82,6 +83,32 @@ abstract final class DynamicsHttp {
       return Success(FollowUpModel.fromJson(res.data['data']));
     } else {
       return Error(res.data['message']);
+    }
+  }
+
+  /// Read publication timestamps before feed filters can remove any items.
+  static Future<LoadingState<int>> latestDynamicPubTime(int mid) async {
+    try {
+      final res = await Request().get(
+        Api.followDynamic,
+        queryParameters: {
+          'host_mid': mid,
+          'features': Constants.dynFeatures,
+        },
+      );
+      if (res.data['code'] != 0) return Error(res.data['message']);
+
+      var latest = 0;
+      // A pinned post may precede newer posts, so inspect the entire first page.
+      for (final item in res.data['data']?['items'] as List? ?? const []) {
+        final author = item['modules']?['module_author'];
+        if (safeToInt(author?['mid']) != mid) continue;
+        final published = safeToInt(author?['pub_ts']) ?? 0;
+        if (published > latest) latest = published;
+      }
+      return Success(latest);
+    } catch (e) {
+      return Error(e.toString());
     }
   }
 

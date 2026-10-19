@@ -8,6 +8,7 @@ import 'package:PiliPlus/utils/extension/num_ext.dart';
 import 'package:PiliPlus/utils/feed_back.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:get/get.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -30,14 +31,30 @@ class _UpPanelState extends State<UpPanel> {
   late final isTop = controller.upPanelPosition == UpPanelPosition.top;
   final _liveToggleKey = GlobalKey();
   late final Worker _selectionWorker;
+  late List<int> _visibleMids;
 
   @override
   void initState() {
     super.initState();
+    _visibleMids = controller.visibleUpList.map((item) => item.mid).toList();
     _selectionWorker = ever(controller.selectedUpMid, (_) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _revealSelectedUp());
     });
     WidgetsBinding.instance.addPostFrameCallback((_) => _revealSelectedUp());
+  }
+
+  @override
+  void didUpdateWidget(covariant UpPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final mids = controller.visibleUpList.map((item) => item.mid).toList();
+    if (!listEquals(_visibleMids, mids)) {
+      _visibleMids = mids;
+      if (controller.currentMid != -1) {
+        WidgetsBinding.instance.addPostFrameCallback(
+          (_) => _revealSelectedUp(),
+        );
+      }
+    }
   }
 
   @override

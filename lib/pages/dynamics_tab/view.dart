@@ -68,8 +68,10 @@ class _DynamicsTabPageState extends State<DynamicsTabPage>
   }
 
   Future<void> onRefresh() {
-    dynamicsController.singleRefresh();
-    return controller.onRefresh();
+    return Future.wait([
+      dynamicsController.singleRefresh(),
+      controller.onRefresh(),
+    ]);
   }
 
   @override

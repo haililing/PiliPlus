@@ -26,17 +26,31 @@ class DynamicsController
   late int _page = 1;
   late bool _isEnd = false;
   Set<UpItem>? _cacheUpList;
+  final Map<int, int> _latestDynamicTimes = {};
+  final Set<int> _timestampFetchedMids = {};
+  int _sortGeneration = 0;
+  Future<void>? _queryFuture;
   final selectedUpMid = (-1).obs;
   int get currentMid => selectedUpMid.value;
   bool get upSwipeEnabled =>
       tabController.index == 0 && !tabController.indexIsChanging;
 
-  List<UpItem> get visibleUpList =>
-      loadingState.value.dataOrNull?.upList
-          ?.where((item) => item.mid > 0 && item.mid != Accounts.main.mid)
-          .toSet()
-          .toList() ??
-      const [];
+  List<UpItem> get visibleUpList {
+    final items =
+        loadingState.value.dataOrNull?.upList
+            ?.where((item) => item.mid > 0 && item.mid != Accounts.main.mid)
+            .toSet()
+            .toList() ??
+        <UpItem>[];
+    return items..sort((a, b) {
+      final byTime = (_latestDynamicTimes[b.mid] ?? 0).compareTo(
+        _latestDynamicTimes[a.mid] ?? 0,
+      );
+      // Keep ties stable across refreshes, regardless of the server's order.
+      return byTime != 0 ? byTime : a.mid.compareTo(b.mid);
+    });
+  }
+
   late bool showLiveUp = Pref.expandDynLivePanel;
   late final _showAllUp = Pref.dynamicsShowAllFollowedUp;
 
@@ -99,6 +113,9 @@ class DynamicsController
   }
 
   Future<void> singleRefresh() {
+    if (isLoading) return _queryFuture ?? Future.value();
+    _sortGeneration++;
+    _timestampFetchedMids.clear();
     if (_showAllUp) {
       _page = 1;
       _cacheUpList = null;
@@ -112,8 +129,10 @@ class DynamicsController
   Future<void> onRefresh() {
     final controller = this.controller;
     if (controller != null) {
-      singleRefresh();
-      return controller.onRefresh();
+      return Future.wait([
+        singleRefresh(),
+        controller.onRefresh(),
+      ]);
     }
     return singleRefresh();
   }
@@ -148,34 +167,89 @@ class DynamicsController
 
   @override
   void onClose() {
+    _sortGeneration++;
     tabController.dispose();
     super.onClose();
   }
 
   @override
-  void onChangeAccount(bool isLogin) => onReload();
+  Future<void> onChangeAccount(bool isLogin) async {
+    _sortGeneration++;
+    _latestDynamicTimes.clear();
+    _timestampFetchedMids.clear();
+    await _queryFuture;
+    if (!isClosed) await onReload();
+  }
 
   @override
-  Future<LoadingState<FollowUpModel>> customGetData() {
+  Future<LoadingState<FollowUpModel>> customGetData() async {
+    final generation = _sortGeneration;
+    final accountMid = Accounts.main.mid;
+    final LoadingState<FollowUpModel> response;
     if (_offset == null) {
-      return DynamicsHttp.followUp();
-    }
-    if (_showAllUp) {
-      return DynamicsHttp.followings(
+      response = await DynamicsHttp.followUp();
+    } else if (_showAllUp) {
+      response = await DynamicsHttp.followings(
         vmid: Accounts.main.mid,
         pn: _page,
         orderType: 'attention',
         ps: 50,
       );
     } else {
-      return DynamicsHttp.dynUpList(_offset);
+      response = await DynamicsHttp.dynUpList(_offset);
+    }
+    if (response is Success<FollowUpModel>) {
+      await _loadLatestDynamicTimes(
+        response.response.upList ?? const [],
+        generation,
+        accountMid,
+      );
+    }
+    return response;
+  }
+
+  Future<void> _loadLatestDynamicTimes(
+    List<UpItem> items,
+    int generation,
+    int accountMid,
+  ) async {
+    final mids = items
+        .map((item) => item.mid)
+        .where((mid) => mid > 0 && mid != accountMid)
+        .toSet()
+        .difference(_timestampFetchedMids)
+        .toList();
+    final times = <int, int>{};
+    var next = 0;
+    bool isCurrent() =>
+        !isClosed &&
+        generation == _sortGeneration &&
+        accountMid == Accounts.main.mid;
+
+    Future<void> load() async {
+      while (next < mids.length && isCurrent()) {
+        final mid = mids[next++];
+        final result = await DynamicsHttp.latestDynamicPubTime(mid);
+        if (result is Success<int>) times[mid] = result.response;
+      }
+    }
+
+    // Bound concurrent requests and publish the new order once per page.
+    await Future.wait(List.generate(mids.length.clamp(0, 3), (_) => load()));
+    if (isCurrent()) {
+      // Failed requests retain the last known publication time.
+      _latestDynamicTimes.addAll(times);
+      _timestampFetchedMids.addAll(times.keys);
     }
   }
 
   @override
   Future<void> queryData([bool isRefresh = true]) {
+    if (isLoading) return _queryFuture ?? Future.value();
     if (!isRefresh && _isEnd) return Future.value();
-    return super.queryData(isRefresh);
+    final query = super.queryData(isRefresh);
+    _queryFuture = query;
+    return query.whenComplete(() => _queryFuture = null);
   }
 
   @override
